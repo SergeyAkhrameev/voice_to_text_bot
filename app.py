@@ -1,15 +1,24 @@
 import os
 import time
 import numpy as np
+import json
+import torch
 
 import telebot as tb
 import whisper_timestamped as whisper
 import ffmpeg
-import json
-import torch
 import math
 
 from pydub import AudioSegment
+from dotenv import load_dotenv
+
+
+
+load_dotenv()
+
+#Provide the following values to the .env file
+TG_BOT_TOKEN = os.getenv('TG_BOT_TOKEN')
+
 
 #this ensures that the current MacOS version is at least 12.3+
 print(torch.backends.mps.is_available())
@@ -18,34 +27,33 @@ print(torch.backends.mps.is_built())
 
 #help(whisper.transcribe)
 
-# Замените "YOUR_BOT_TOKEN" на токен вашего бота
-bot = tb.TeleBot('')
+bot = tb.TeleBot('TG_BOT_TOKEN')
 
-# Обработчик голосовых сообщений
+# Voice messages processor
 @bot.message_handler(content_types=["voice"])
 def handle_voice_message(message):
     try:
-        # Получаем голосовое сообщение
+        # Getting a voice message
         voice = bot.get_file(message.voice.file_id)
         voice_info = bot.get_file(message.voice.file_id)
         voice_file = bot.download_file(voice.file_path)
 
-        # Сохраняем голосовое сообщение в файл
+        # Saving a voice message to a file
         voice_file_path_ogg = os.path.join("voice_messages", f"{message.message_id}.ogg")
         with open(voice_file_path_ogg, "wb") as voice_file_local:
             voice_file_local.write(voice_file)
 
-        # Преобразуем .ogg в .wav
+        # Converting .ogg to .wav
         voice_file_path_wav = os.path.join("voice_messages", f"{message.message_id}.wav")
         audio = AudioSegment.from_ogg(voice_file_path_ogg)
-        audio = audio.set_frame_rate(16000).set_sample_width(2)  # Установите желаемую частоту дискретизации и ширину выборки
+        audio = audio.set_frame_rate(16000).set_sample_width(2)  # Set up desired frequency 
         audio.export(voice_file_path_wav, format="wav")
 
         #voice_file_path_wav ='voice_messages/respondent.wav' #Load file directly
 
         print(f"voice_file_path_wav: {voice_file_path_wav}")
 
-        # Распознавание речи с помощью WhisperTimestamped
+        # Speach detection with WhisperTimestamped
         audio = whisper.load_audio(voice_file_path_wav)
         model = whisper.load_model("large", device='cpu')
         
@@ -78,61 +86,58 @@ def handle_voice_message(message):
             confidence = item['confidence']
             segments.append(confidence)
         
-        # Вычислите среднее значение
+        # Calculate an averege confidence
         if segments:
             average_confidence = np.mean(segments)
-            print("Среднее значение уверенности:", average_confidence)
+            print("Average confidence:", average_confidence)
         else:
-            print("Список segments пуст.")
+            print("The segments list is empty.")
 
         with open("result.txt", "w", encoding="utf-8") as text_file:
             text_file.write(json_result)
 
-        # Максимальная длина сообщения в Telegram
+        # Max message length in Telegram
         MAX_MESSAGE_LENGTH = 4000
 
         
 
-        # Текст, который вы хотите отправить
+        # Sending text
         text_to_send = result['text']
 
         if len(text_to_send) <= MAX_MESSAGE_LENGTH:
-            bot.send_message(message.chat.id, f"Распознанный текст: {result['text']}")
+            bot.send_message(message.chat.id, f"Recognized text: {result['text']}")
 
         else:
 
-            # Разбиваем текст на слова
+            # Splitting text into words
             words = text_to_send.split()
 
-            # Инициализируем список для хранения частей сообщения
+            # Initializing a list of the message parts
             message_parts = []
 
             current_part = ""
             for word in words:
                 if len(current_part) + len(word) + 1 <= MAX_MESSAGE_LENGTH:
-                    # Добавляем слово и пробел к текущей части, если это не приведет к превышению лимита
+                    # Adding a word and a space
                     current_part += word + " "
                 else:
-                    # Если добавление слова приведет к превышению лимита, завершаем текущую часть
+                    # If limit is reached, stop appending
                     message_parts.append(current_part.strip())
                     current_part = word + " "
 
-            # Добавляем последнюю часть
+            # Adding the last part
             message_parts.append(current_part.strip())
 
-            # Отправляем части сообщения
+            # Sending the parts to the bot
             for part in message_parts:
-                bot.send_message(message.chat.id, f"Распознанный текст: {part}")    
+                bot.send_message(message.chat.id, f"Recognized text: {part}")    
 
 
-        # Отправляем текстовый ответ
-        #bot.send_message(message.chat.id, f"Распознанный текст: {result['text']}")
-        #bot.send_message(message.chat.id, f"Распознанный текст: {result['segments'][0]['start']['text']}")
     
-        print(f"Время выполнения: {elapsed_time} секунд")
+        print(f"Completion time is: {elapsed_time} seconds")
     
     except Exception as e:
-        bot.send_message(message.chat.id, f"Произошла ошибка: {str(e)}")
+        bot.send_message(message.chat.id, f"Error occured: {str(e)}")
 
-# Запускаем бота
+# Run the bot
 bot.polling(none_stop=True)
