@@ -19,7 +19,7 @@ print(torch.backends.mps.is_built())
 #help(whisper.transcribe)
 
 # Замените "YOUR_BOT_TOKEN" на токен вашего бота
-bot = tb.TeleBot('6625813603:AAEdODm8ujujMU582q463F3S7i4IOPHYsY4')
+bot = tb.TeleBot('')
 
 # Обработчик голосовых сообщений
 @bot.message_handler(content_types=["voice"])
