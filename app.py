@@ -12,8 +12,6 @@ import math
 from pydub import AudioSegment
 from dotenv import load_dotenv
 
-
-
 load_dotenv()
 
 #Provide the following values to the .env file
@@ -27,7 +25,7 @@ print(torch.backends.mps.is_built())
 
 #help(whisper.transcribe)
 
-bot = tb.TeleBot('TG_BOT_TOKEN')
+bot = tb.TeleBot(TG_BOT_TOKEN)
 
 # Voice messages processor
 @bot.message_handler(content_types=["voice"])
